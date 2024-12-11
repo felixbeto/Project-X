@@ -1,0 +1,76 @@
+import org.zaproxy.clientapi.core.ClientApi;
+import org.zaproxy.clientapi.core.ApiResponse;
+import org.zaproxy.clientapi.core.ApiResponseElement;
+
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+public class VulnerabilityScanner {
+
+    private static final String ZAP_ADDRESS = System.getenv("ZAP_ADDRESS") != null ? System.getenv("ZAP_ADDRESS") : "localhost";
+    private static final int ZAP_PORT = Integer.parseInt(System.getenv("ZAP_PORT") != null ? System.getenv("ZAP_PORT") : "8080");
+    private static final String ZAP_API_KEY = System.getenv("ZAP_API_KEY"); // Set this in your environment
+    private static final String TARGET_URL = System.getenv("TARGET_URL") != null ? System.getenv("TARGET_URL") : "http://example.com";
+
+    private ClientApi api;
+
+    public VulnerabilityScanner() {
+        this.api = new ClientApi(ZAP_ADDRESS, ZAP_PORT, ZAP_API_KEY);
+    }
+
+    public void runScan() {
+        try {
+            String scanId = startSpider();
+            waitForScanToComplete(scanId);
+            String alerts = getAlerts();
+            System.out.println("Alerts: " + alerts);
+        } catch (IOException | InterruptedException e) {
+            System.err.println("Error during scan: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private String startSpider() throws IOException {
+        System.out.println("Starting spider scan...");
+        return api.spider.scan(TARGET_URL, null, null, null, null).toString();
+    }
+
+    private void waitForScanToComplete(String scanId) throws IOException, InterruptedException {
+        System.out.println("Waiting for spider scan to complete...");
+        while (true) {
+            ApiResponse response = api.spider.status(scanId);
+            int status = Integer.parseInt(((ApiResponseElement) response).getValue());
+            if (status >= 100) {
+                System.out.println("Spider scan completed.");
+                break;
+            }
+            TimeUnit.SECONDS.sleep(5);
+        }
+
+        System.out.println("Starting active scan...");
+        String activeScanId = api.ascan.scan(TARGET_URL, "True", "False", null, null, null).toString();
+        waitForActiveScanToComplete(activeScanId);
+    }
+
+    private void waitForActiveScanToComplete(String scanId) throws IOException, InterruptedException {
+        System.out.println("Waiting for active scan to complete...");
+        while (true) {
+            ApiResponse response = api.ascan.status(scanId);
+            int status = Integer.parseInt(((ApiResponseElement) response).getValue());
+            if (status >= 100) {
+                System.out.println("Active scan completed.");
+                break;
+            }
+            TimeUnit.SECONDS.sleep(5);
+        }
+    }
+
+    private String getAlerts() throws IOException {
+        return api.core.alerts(TARGET_URL, "1", "10").toString();
+    }
+
+    public static void main(String[] args) {
+        VulnerabilityScanner scanner = new VulnerabilityScanner();
+        scanner.runScan();
+    }
+}
