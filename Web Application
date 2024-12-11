@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulnerability Scanner</title>
+</head>
+<body>
+    <h1>Vulnerability Scanner</h1>
+    <input type="text" id="targetUrl" placeholder="Enter target URL" />
+    <button id="scanButton">Start Scan</button>
+    <pre id="result"></pre>
+
+    <script>
+        document.getElementById('scanButton').addEventListener('click', async () => {
+            const targetUrl = document.getElementById('targetUrl').value;
+            const response = await fetch('/api/scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ target: targetUrl }),
+            });
+
+            const result = await response.json();
+            document.getElementById('result').textContent = JSON.stringify(result, null, 2);
+        });
+    </script>
+</body>
+</html>
